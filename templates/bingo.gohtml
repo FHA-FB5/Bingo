@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bingo Bongo</title>
+</head>
+<body>
+{{$token := .Token}}
+<div class="container">
+    {{range .Rows}}
+        <div class="row">
+            {{range .Tasks}}
+                <div class="field">
+                    {{.Description}}
+                    {{if eq .Type "file"}}
+                        <form action="/upload" enctype="multipart/form-data" method="post">
+                            <input name="file" type="file"/><br/>
+                            <input type="hidden" name="task" value="{{.ID}}">
+                            <input type="hidden" name="token" value="{{$token}}">
+                            <input type="submit">
+                        </form>
+                    {{else}}
+                        <form action="/upload" method="post">
+                            <textarea name="text"></textarea>
+                            <input type="hidden" name="task" value="{{.ID}}">
+                            <input type="hidden" name="token" value="{{$token}}">
+                            <input type="submit">
+                        </form>
+                    {{end}}
+                </div>
+            {{end}}
+        </div>
+    {{end}}
+</div>
+</body>
+</html>
