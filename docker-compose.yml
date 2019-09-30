@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  bingo:
+    build:
+      context: .
+    volumes:
+      - ./storage:/app/storage
+    ports:
+      - 8881:8080

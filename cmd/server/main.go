@@ -56,7 +56,7 @@ func main() {
 	r.Path("/event").Methods("GET").HandlerFunc(h.Event)
 	r.Path("/upload").Methods("POST").HandlerFunc(h.PostFile)
 	http.Handle("/", r)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe("0.0.0.0:8080", nil); err != nil {
 		log.Fatal(err)
 	}
 }
