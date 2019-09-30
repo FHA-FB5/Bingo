@@ -4,7 +4,7 @@ type FileType string
 
 func (f FileType) String() (ft string) {
 	switch f {
-	case FileTypeImage, FileTypeText:
+	case FileTypeImage, FileTypeText, FileTypeVideo:
 		ft = string(f)
 	default:
 		ft = string(FileTypeUnknown)
@@ -15,5 +15,6 @@ func (f FileType) String() (ft string) {
 const (
 	FileTypeUnknown FileType = "unknown"
 	FileTypeImage            = "image"
+	FileTypeVideo            = "video"
 	FileTypeText             = "text"
 )
