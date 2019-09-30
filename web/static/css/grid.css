@@ -3,8 +3,11 @@
 }
 
 body {
-  background: #f8f8f8;
   font-family: "Nunito", sans-serif;
+}
+
+.main-content {
+  background-color: chocolate;
 }
 
 aside.context {
@@ -12,15 +15,18 @@ aside.context {
   color: #333;
   line-height: 1.7;
 }
+
 aside.context a {
   text-decoration: none;
   color: #333;
   padding: 3px 0;
   border-bottom: 1px dashed;
 }
+
 aside.context a:hover {
   border-bottom: 1px solid;
 }
+
 aside.context .explanation {
   max-width: 700px;
   margin: 4em auto 0;
@@ -41,16 +47,25 @@ aside.context .explanation {
   text-align: center;
   font: 72px/0.9 "Amatic SC", cursive;
 }
+
+.title aside {
+  font-size: 15px;
+  color: #736faa;
+}
+
 .title span {
   display: none;
 }
+
 .title span:nth-child(1) {
   display: block;
 }
+
 @media screen and (max-width: 600px) {
   .title span:nth-child(1) {
     display: none;
   }
+
   .title span:nth-child(2) {
     display: block;
   }
@@ -62,9 +77,10 @@ aside.context .explanation {
   display: grid;
   grid-gap: 3px;
   grid-template-rows: repeat(5, 100px);
-  grid-template-columns: repeat(5, 100px);
+  grid-template-columns: repeat(5, 114px);
   text-transform: uppercase;
 }
+
 .bingo-card__item {
   background: #f9f59e;
   display: flex;
@@ -77,6 +93,7 @@ aside.context .explanation {
   line-height: 1.35;
   user-select: none;
 }
+
 .bingo-card__item:after {
   content: "-";
   position: absolute;
@@ -92,6 +109,7 @@ aside.context .explanation {
   text-align: center;
   transform: rotate(-45deg);
 }
+
 .bingo-card__item.active:after {
   height: 100%;
   opacity: 0.7;
@@ -99,7 +117,10 @@ aside.context .explanation {
 
 .bingo-card__item {
   padding: 15px;
+  overflow: hidden;
+  word-break: break-word;
 }
+
 .bingo-card__item.active .bingo-card__checkbox:before {
   content: "\2714";
   position: absolute;
@@ -109,6 +130,24 @@ aside.context .explanation {
   color: #fdb90b;
   font: 8px "Caveat Brush", cursive;
 }
+
 .bingo-card__checkbox {
   display: none;
+}
+
+/* The popup form - hidden by default */
+.form-popup {
+  width: 20em;
+  word-break: break-word;
+  display: none;
+  position: fixed;
+  bottom: 5px;
+  right: 5px;
+  border: 3px solid black;
+  z-index: 9;
+  background-color: brown;
+}
+
+body {
+  background-color: chocolate;
 }
