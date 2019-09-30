@@ -3,8 +3,9 @@ package model
 import "fmt"
 
 type Task struct {
-	Task string   `json:"task"`
-	Type FileType `json:"type"`
+	Description string   `json:"task"`
+	Type        FileType `json:"type"`
+	ID          int
 }
 
 type Tasks []Task
