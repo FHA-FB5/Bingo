@@ -1,7 +1,6 @@
 package services
 
 import (
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -24,6 +23,8 @@ type Handler struct {
 	Store       *sessions.CookieStore
 	SessionName string
 	Tasks       *model.Tasks
+	Templates   *template.Template
+	Groups      map[string]string
 }
 
 const (
@@ -32,13 +33,58 @@ const (
 )
 
 func (h *Handler) Index(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("index.html"))
-	if err := tmpl.Execute(w, nil); err != nil {
+	if err := h.Templates.ExecuteTemplate(w, "index.tmpl", nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
+func (h Handler) Event(w http.ResponseWriter, r *http.Request) {
+	token := r.FormValue("token")
+	if token == "" {
+		http.Error(w, "token missing", http.StatusBadRequest)
+		return
+	}
+	group := h.getGroupForToken(token)
+	if group == "" {
+		http.Error(w, "invalid token", http.StatusBadRequest)
+		return
+	}
+	if h.Tasks == nil {
+		log.Error("tasks is nil")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	tasks := []model.Task(*h.Tasks)
+	for i := range tasks {
+		tasks[i].ID = i
+	}
+	tmplData := model.Bingo{
+		Token: token,
+		Tasks: tasks,
+	}
+	if err := h.Templates.ExecuteTemplate(w, "base.tmpl", tmplData); err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
 func (h *Handler) PostFile(w http.ResponseWriter, r *http.Request) {
+	contentType, _, err := mime.ParseMediaType(r.Header.Get("content-type"))
+	if err != nil {
+		http.Error(w, "no content-type specified", http.StatusBadRequest)
+		return
+	}
+	switch contentType {
+	case "multipart/form-data":
+		h.handleFile(w, r)
+	case "application/x-www-form-urlencoded":
+		h.handleText(w, r)
+	default:
+		http.Error(w, "invalid type specified", http.StatusBadRequest)
+	}
+}
+
+func (h Handler) handleFile(w http.ResponseWriter, r *http.Request) {
 	contentType, options, err := mime.ParseMediaType(r.Header.Get("content-type"))
 	if err != nil {
 		http.Error(w, "no content-type specified", http.StatusBadRequest)
@@ -55,8 +101,12 @@ func (h *Handler) PostFile(w http.ResponseWriter, r *http.Request) {
 	}
 	mr := multipart.NewReader(r.Body, boundary)
 	form, err := mr.ReadForm(maxFileSize)
-	if err != nil {
+	if err == multipart.ErrMessageTooLarge {
 		http.Error(w, fmt.Sprintf("maximum file size is %.3fMB", float64(maxFileSize)/(1<<20)), http.StatusBadRequest)
+		return
+	} else if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	task, ok := form.Value["task"]
@@ -71,7 +121,7 @@ func (h *Handler) PostFile(w http.ResponseWriter, r *http.Request) {
 	}
 	t, ok := form.Value["token"]
 	if !ok || len(t) < 1 {
-		http.Error(w, "token is missing", http.StatusBadRequest)
+		http.Error(w, "token missing", http.StatusBadRequest)
 		return
 	}
 	token := t[0]
@@ -80,14 +130,21 @@ func (h *Handler) PostFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "task does not exist", http.StatusNotFound)
 		return
 	}
-	path := fmt.Sprintf("storage/%s/", token)
+	group := h.getGroupForToken(token)
+	if group == "" {
+		http.Error(w, "invalid token", http.StatusBadRequest)
+		return
+	}
+	path := fmt.Sprintf("storage/%s/", group)
 	name := fmt.Sprintf("%d_%s.%s", taskID, time.Now().Format(time.RFC3339), fileType)
 	if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	f, err := os.Create(path + name)
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -104,18 +161,76 @@ func (h *Handler) PostFile(w http.ResponseWriter, r *http.Request) {
 	}
 	file, err := header[0].Open()
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if _, err := io.Copy(f, file); err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusNoContent)
+	http.Redirect(w, r, "/event?token="+token, http.StatusNoContent)
 }
 
-func (h *Handler) GetTasks(w http.ResponseWriter, _ *http.Request) {
-	if err := json.NewEncoder(w).Encode(h.Tasks); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+func (h Handler) handleText(w http.ResponseWriter, r *http.Request) {
+	token := r.FormValue("token")
+	if token == "" {
+		http.Error(w, "token missing", http.StatusBadRequest)
+		return
 	}
+	task := r.FormValue("task")
+	taskID, err := strconv.Atoi(task)
+	if err != nil {
+		http.Error(w, "invalid task id", http.StatusBadRequest)
+		return
+	}
+	fileType, err := h.Tasks.TypeByID(taskID)
+	if err != nil {
+		http.Error(w, "task does not exist", http.StatusNotFound)
+		return
+	}
+	group := h.getGroupForToken(token)
+	if group == "" {
+		http.Error(w, "invalid token", http.StatusBadRequest)
+		return
+	}
+	path := fmt.Sprintf("storage/%s/", group)
+	name := fmt.Sprintf("%d_%s.%s", taskID, time.Now().Format(time.RFC3339), fileType)
+	if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	f, err := os.Create(path + name)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Error(err)
+		}
+	}()
+	text := r.FormValue("text")
+	if text == "" {
+		http.Error(w, "no text", http.StatusBadRequest)
+		return
+	}
+	if _, err := f.WriteString(text); err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/event?token="+token, http.StatusNoContent)
+}
+
+func (h Handler) getGroupForToken(token string) string {
+	for t, group := range h.Groups {
+		if t == token {
+			return group
+		}
+	}
+	return ""
 }
