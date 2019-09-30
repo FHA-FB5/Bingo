@@ -1,0 +1,39 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Bingo Bongo</title>
+        {{block "style" .}} {{end}}
+        <!-- copy pasta from https://github.com/oliviale -->
+    </head>
+    <body>
+
+        <div class="main-content">
+            <div class="title">
+                <span>
+                BingoBongo
+                </span>
+            </div>
+            <div class="bingo-card">
+                {{range .Tasks}}
+                <div class="bingo-card__item">{{.Description}}
+                    {{if eq .Type "file"}}
+                    <form action="/upload" enctype="multipart/form-data" method="post">
+                        <input name="file" type="file"/><br/>
+                        <input type="hidden" name="task" value="{{.ID}}">
+                        <input type="hidden" name="token" value="{{$token}}">
+                        <input type="submit">
+                    </form>
+                    {{else}}
+                    <form action="/upload" method="post">
+                        <textarea name="text"></textarea>
+                        <input type="hidden" name="task" value="{{.ID}}">
+                        <input type="hidden" name="token" value="{{$token}}">
+                        <input type="submit">
+                    </form>
+                    {{end}}
+                    <span class="bingo-card__checkbox"></span></div>
+                {{.end}}
+            </div>
+        </div>
+    </body>
+</html>
